@@ -1,4 +1,5 @@
 set nocompatible        " Use Vim defaults (much better!)
+
 set bs=2                " Allow backspacing over everything in insert mode
 set ai                  " Always set auto-indenting on
 set history=50          " keep 50 lines of command history
