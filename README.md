@@ -28,6 +28,11 @@ git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-m
 # zsh-completions
 git clone https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:=~/.oh-my-zsh/custom}/plugins/zsh-completions
 
+# p10k 的部分可能會需要新增字型, 這部分就手動安裝並且修改
+# 使用 MesloLGS NF Regular.ttf
+# https://github.com/romkatv/powerlevel10k/blob/master/font.md
+
+
 # mac
 git clone https://github.com/RayLin9981/config.git
 
