@@ -7,6 +7,9 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(
 git
 osx
+you-should-use
+zsh-autosuggestions
+zsh-completions
 )
 source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
