@@ -28,4 +28,11 @@ git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-m
 # zsh-completions
 git clone https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:=~/.oh-my-zsh/custom}/plugins/zsh-completions
 
+# mac
+git clone https://github.com/RayLin9981/config.git
+
+cp config/mac/.p10k.zsh ~
+cp config/mac/.zshrc ~
+cp -R config/vim ~/.vim
+
 ```
