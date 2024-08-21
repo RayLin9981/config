@@ -13,6 +13,7 @@ sudo apt install zsh # zsh 5.8.1
 sh -c "$(wget -O- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 # sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
+
 #
 # p10k
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
@@ -41,3 +42,9 @@ cp config/mac/.zshrc ~
 cp -R config/vim ~/.vim
 
 ```
+# 注意事項  
+當 oh-my-zsh 用 normal user 安裝失敗時，先看看 ZSH 相關的變數，不要直接用 sudo 去跑  
+
+# 測試 (2024.8)
+- macbook
+- ubuntu 24.04
