@@ -1,5 +1,7 @@
 # config
+```
 git clone https://github.com/RayLin9981/config.git
+```
 
 # zsh, p10k 的設定檔案
 把自己的安裝內容記錄一下
