@@ -30,3 +30,4 @@ fi
 # 💎 載入 powerlevel10k 設定（若存在）
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
 
+export YSU_MESSAGE_POSITION="after"
