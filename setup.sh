@@ -54,7 +54,8 @@ fi
 
 cp "$HOME/config/.p10k.zsh" "$HOME"
 cp "$HOME/config/.zshrc" "$HOME"
-cp -R "$HOME/config/vim" "$HOME/.vim"
+cp -R  $HOME/config/vim/colors "$HOME/.vim/colors"
+cp -R "$HOME/config/vim/.vimrc" "$HOME/.vimrc"
 
 echo "✅ 設定檔已複製到家目錄"
 
