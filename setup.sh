@@ -52,8 +52,8 @@ if [ ! -d "$HOME/config" ]; then
   git clone https://github.com/RayLin9981/config.git "$HOME/config"
 fi
 
-cp "$HOME/config/mac/.p10k.zsh" "$HOME"
-cp "$HOME/config/mac/.zshrc" "$HOME"
+cp "$HOME/config/.p10k.zsh" "$HOME"
+cp "$HOME/config/.zshrc" "$HOME"
 cp -R "$HOME/config/vim" "$HOME/.vim"
 
 echo "✅ 設定檔已複製到家目錄"
