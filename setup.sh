@@ -52,10 +52,29 @@ if [ ! -d "$HOME/config" ]; then
   git clone https://github.com/RayLin9981/config.git "$HOME/config"
 fi
 
-cp "$HOME/config/.p10k.zsh" "$HOME"
-cp "$HOME/config/.zshrc" "$HOME"
-cp -R  $HOME/config/vim/colors "$HOME/.vim/colors"
-cp -R "$HOME/config/vim/.vimrc" "$HOME/.vimrc"
+OS="$(uname)"
+echo "偵測到作業系統：$OS"
+
+# 設定路徑依據作業系統
+if [[ "$OS" == "Darwin" ]]; then
+    # macOS
+    TARGET_HOME="$HOME"
+elif [[ "$OS" == "Linux" ]]; then
+    # Ubuntu 預設
+    TARGET_HOME="$HOME"
+else
+    echo "不支援的作業系統：$OS"
+    exit 1
+fi
+
+# 建立 Vim 顏色資料夾
+mkdir -p "$TARGET_HOME/.vim/colors"
+
+# 複製設定檔
+cp "$HOME/config/.p10k.zsh" "$TARGET_HOME" && echo "✅ 已複製 .p10k.zsh"
+cp "$HOME/config/.zshrc" "$TARGET_HOME" && echo "✅ 已複製 .zshrc"
+cp -R "$HOME/config/vim/colors" "$TARGET_HOME/.vim/" && echo "✅ 已複製 Vim 顏色主題"
+cp "$HOME/config/vim/.vimrc" "$TARGET_HOME/.vimrc" && echo "✅ 已複製 .vimrc"
 
 echo "✅ 設定檔已複製到家目錄"
 
@@ -64,6 +83,17 @@ read -rp "🔁 是否將 zsh 設為預設 shell？(y/N): " SET_ZSH
 if [[ "${SET_ZSH,,}" == "y" ]]; then
   chsh -s "$(which zsh)"
   echo "✔️  已將 zsh 設為預設 shell，請重新登入"
+fi
+
+# 修改 zsh-autosuggestions 插件設定
+ZSH_AUTOSUGGEST_FILE="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+if [[ -f "$ZSH_AUTOSUGGEST_FILE" ]]; then
+    echo "🔧 修改 zsh-autosuggestions.zsh 策略為：history completion"
+    sed -i.bak 's/ZSH_AUTOSUGGEST_STRATEGY=(history)/ZSH_AUTOSUGGEST_STRATEGY=(history completion)/' "$ZSH_AUTOSUGGEST_FILE" \
+        && echo "✅ 修改成功（備份為 .bak）"
+else
+    echo "⚠️ 找不到 zsh-autosuggestions.zsh：$ZSH_AUTOSUGGEST_FILE"
 fi
 
 echo "🎉 完成安裝與設定！"

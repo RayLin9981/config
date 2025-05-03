@@ -3,6 +3,8 @@
 git clone https://github.com/RayLin9981/config.git
 ```
 
+# 請參考 setup.sh 使用
+
 # zsh, p10k 的設定檔案
 把自己的安裝內容記錄一下
 ```bash
