@@ -7,12 +7,19 @@ input_server="$3"
 
 # 讀取 /etc/hosts 中的 server 資訊
 servers=()
+# ---- 讀取 /etc/hosts 中的 server 資訊 ----
+servers=()
 while read -r line; do
-  [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
-  ip=$(echo "$line" | awk '{print $1}')
-  name=$(echo "$line" | awk '{print $2}')
-  servers+=("$ip $name")
-done < /etc/hosts
+  # 忽略註解、空白、localhost、IPv6
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+      [[ "$line" =~ ^127\.0\.0\.1 ]] && continue
+        [[ "$line" =~ ^::.*$ || "$line" =~ ^fe00:: || "$line" =~ ^ff0[0-9]:: || "$line" =~ ^ff02:: ]] && continue
+
+          ip=$(echo "$line" | awk '{print $1}')
+            name=$(echo "$line" | awk '{print $2}')
+              [[ -n "$ip" && -n "$name" ]] && servers+=("$ip $name")
+              done < /etc/hosts
+
 
 if [ ${#servers[@]} -eq 0 ]; then
   echo "❌ 找不到任何主機定義於 /etc/hosts"
@@ -84,4 +91,3 @@ read -p "請輸入要使用的使用者帳號: " ssh_user
 
 echo "🔐 正在連線：$ssh_user@$hostname ($ip)"
 ssh "$ssh_user@$hostname"
-
