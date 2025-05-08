@@ -1,82 +1,75 @@
 #!/bin/bash
 
-# ---- 參數處理 ----
-action="$1"
-input_user="$2"
-input_server="$3"
+arg1="$1"
+arg2="$2"
 
-# 讀取 /etc/hosts 中的 server 資訊
-servers=()
-# ---- 讀取 /etc/hosts 中的 server 資訊 ----
+# ---- 自動推論參數 ----
+if [ -n "$arg1" ] && [ -z "$arg2" ]; then
+  input_user="root"
+  input_server="$arg1"
+elif [ -n "$arg1" ] && [ -n "$arg2" ]; then
+  input_user="$arg1"
+  input_server="$arg2"
+fi
+
+# ---- 讀取 /etc/hosts ----
 servers=()
 while read -r line; do
-  # 忽略註解、空白、localhost、IPv6
-    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
-      [[ "$line" =~ ^127\.0\.0\.1 ]] && continue
-        [[ "$line" =~ ^::.*$ || "$line" =~ ^fe00:: || "$line" =~ ^ff0[0-9]:: || "$line" =~ ^ff02:: ]] && continue
+  [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+  [[ "$line" =~ ^127\..* ]] && continue
+  [[ "$line" =~ ^::.*$ || "$line" =~ ^fe00:: || "$line" =~ ^ff0[0-9]:: || "$line" =~ ^ff02:: ]] && continue
 
-          ip=$(echo "$line" | awk '{print $1}')
-            name=$(echo "$line" | awk '{print $2}')
-              [[ -n "$ip" && -n "$name" ]] && servers+=("$ip $name")
-              done < /etc/hosts
-
+  ip=$(echo "$line" | awk '{print $1}')
+  name=$(echo "$line" | awk '{print $2}')
+  [[ -n "$ip" && -n "$name" ]] && servers+=("$ip $name")
+done < /etc/hosts
 
 if [ ${#servers[@]} -eq 0 ]; then
   echo "❌ 找不到任何主機定義於 /etc/hosts"
   exit 1
 fi
 
-# 如果第一個參數是 print
-if [ "$action" == "print" ]; then
+# 顯示主機列表
+print_servers() {
   echo "🔍 可用伺服器列表："
   for i in "${!servers[@]}"; do
     ip=$(echo "${servers[$i]}" | awk '{print $1}')
     name=$(echo "${servers[$i]}" | awk '{print $2}')
     echo "$((i+1)). $name ($ip)"
   done
+}
 
-  echo
-  echo "✅ 登入範例（請依實際修改 user 與 server）："
-  echo "ssh user@server"
-  exit 0
-fi
-
-# 如果 user + server 都有帶，直接連線
-if [ -n "$action" ] && [ -n "$input_user" ] && [ -n "$input_server" ]; then
-  user="$action"
-  server="$input_user"
-
-  # 查找 server 對應的 IP
-  match_line=""
+# 找出 IP
+find_ip_by_name() {
   for entry in "${servers[@]}"; do
     name=$(echo "$entry" | awk '{print $2}')
-    if [ "$name" == "$server" ]; then
-      match_line="$entry"
-      break
+    ip=$(echo "$entry" | awk '{print $1}')
+    if [ "$name" == "$1" ]; then
+      echo "$ip"
+      return
     fi
   done
+  echo ""
+}
 
-  if [ -z "$match_line" ]; then
-    echo "❌ 找不到主機 '$server'"
+# ---- 參數模式 ----
+if [ -n "$input_user" ] && [ -n "$input_server" ]; then
+  ip=$(find_ip_by_name "$input_server")
+  if [ -z "$ip" ]; then
+    echo "❌ 找不到主機 '$input_server'"
     exit 1
   fi
-
-  ip=$(echo "$match_line" | awk '{print $1}')
-  hostname=$(echo "$match_line" | awk '{print $2}')
-
-  echo "🔐 正在直接連線：$user@$hostname ($ip)"
-  ssh "$user@$hostname"
+  echo "🔐 正在連線：$input_user@$input_server ($ip)"
+  start_time=$(date +%s)
+  ssh "$input_user@$input_server"
+  end_time=$(date +%s)
+  duration=$((end_time - start_time))
+  echo "✅ 連線結束，花費時間：${duration} 秒"
   exit 0
 fi
 
-# ---- 如果沒帶參數，互動模式 ----
-echo "🔍 可用伺服器列表："
-for i in "${!servers[@]}"; do
-  ip=$(echo "${servers[$i]}" | awk '{print $1}')
-  name=$(echo "${servers[$i]}" | awk '{print $2}')
-  echo "$((i+1)). $name ($ip)"
-done
-
+# ---- 互動模式 ----
+print_servers
 read -p "請選擇伺服器編號: " choice
 if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#servers[@]} ]; then
   echo "❌ 無效的選擇"
@@ -87,7 +80,12 @@ selected="${servers[$((choice-1))]}"
 ip=$(echo "$selected" | awk '{print $1}')
 hostname=$(echo "$selected" | awk '{print $2}')
 
-read -p "請輸入要使用的使用者帳號: " ssh_user
+read -p "請輸入要使用的使用者帳號 (預設: root): " ssh_user
+ssh_user="${ssh_user:-root}"
 
 echo "🔐 正在連線：$ssh_user@$hostname ($ip)"
+start_time=$(date +%s)
 ssh "$ssh_user@$hostname"
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+echo "✅ 連線結束，花費時間：${duration} 秒"
