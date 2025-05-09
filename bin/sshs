@@ -1,22 +1,15 @@
 #!/bin/bash
 
-arg1="$1"
-arg2="$2"
+# 檢查並解析參數
+action="$1"
+input_server="$2"
 
-# ---- 自動推論參數 ----
-if [ -n "$arg1" ] && [ -z "$arg2" ]; then
-  input_user="root"
-  input_server="$arg1"
-elif [ -n "$arg1" ] && [ -n "$arg2" ]; then
-  input_user="$arg1"
-  input_server="$arg2"
-fi
-
-# ---- 讀取 /etc/hosts ----
+# 讀取 /etc/hosts，排除 127.x.x.x、localhost、IPv6
 servers=()
 while read -r line; do
   [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
-  [[ "$line" =~ ^127\..* ]] && continue
+  [[ "$line" =~ ^127\. ]] && continue
+  [[ "$line" =~ localhost ]] && continue
   [[ "$line" =~ ^::.*$ || "$line" =~ ^fe00:: || "$line" =~ ^ff0[0-9]:: || "$line" =~ ^ff02:: ]] && continue
 
   ip=$(echo "$line" | awk '{print $1}')
@@ -25,67 +18,124 @@ while read -r line; do
 done < /etc/hosts
 
 if [ ${#servers[@]} -eq 0 ]; then
-  echo "❌ 找不到任何主機定義於 /etc/hosts"
+  echo "❌ /etc/hosts 中找不到任何主機資訊"
   exit 1
 fi
 
-# 顯示主機列表
-print_servers() {
-  echo "🔍 可用伺服器列表："
+# 若沒參數則進入互動模式
+if [ -z "$action" ]; then
+  echo "🔍 可用主機列表："
   for i in "${!servers[@]}"; do
     ip=$(echo "${servers[$i]}" | awk '{print $1}')
     name=$(echo "${servers[$i]}" | awk '{print $2}')
     echo "$((i+1)). $name ($ip)"
   done
-}
 
-# 找出 IP
-find_ip_by_name() {
-  for entry in "${servers[@]}"; do
-    name=$(echo "$entry" | awk '{print $2}')
-    ip=$(echo "$entry" | awk '{print $1}')
-    if [ "$name" == "$1" ]; then
-      echo "$ip"
-      return
-    fi
-  done
-  echo ""
-}
-
-# ---- 參數模式 ----
-if [ -n "$input_user" ] && [ -n "$input_server" ]; then
-  ip=$(find_ip_by_name "$input_server")
-  if [ -z "$ip" ]; then
-    echo "❌ 找不到主機 '$input_server'"
+  read -p "請選擇主機編號: " choice
+  if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#servers[@]} ]; then
+    echo "❌ 無效的選擇"
     exit 1
   fi
-  echo "🔐 正在連線：$input_user@$input_server ($ip)"
-  start_time=$(date +%s)
-  ssh "$input_user@$input_server"
-  end_time=$(date +%s)
-  duration=$((end_time - start_time))
-  echo "✅ 連線結束，花費時間：${duration} 秒"
-  exit 0
+
+  selected="${servers[$((choice-1))]}"
+  ip=$(echo "$selected" | awk '{print $1}')
+  hostname=$(echo "$selected" | awk '{print $2}')
+  read -p "請輸入使用者（預設 root）: " ssh_user
+  ssh_user=${ssh_user:-root}
+else
+  if [ -z "$input_server" ]; then
+    ssh_user="root"
+    hostname="$action"
+  else
+    ssh_user="$action"
+    hostname="$input_server"
+  fi
+
+  found_entry=""
+  for entry in "${servers[@]}"; do
+    name=$(echo "$entry" | awk '{print $2}')
+    if [ "$name" == "$hostname" ]; then
+      found_entry="$entry"
+      break
+    fi
+  done
+
+  if [ -z "$found_entry" ]; then
+    echo "❌ 找不到主機 '$hostname'"
+    exit 1
+  fi
+
+  ip=$(echo "$found_entry" | awk '{print $1}')
 fi
 
-# ---- 互動模式 ----
-print_servers
-read -p "請選擇伺服器編號: " choice
-if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#servers[@]} ]; then
-  echo "❌ 無效的選擇"
-  exit 1
+TARGET="$ssh_user@$hostname"
+
+echo "⏳ 等待 SSH 可用：$TARGET"
+
+START_TIME=$(date +%s)
+
+# 持續測試連線直到成功
+
+while true; do
+  ssh -o ConnectTimeout=5 \
+      -o BatchMode=yes \
+      -o StrictHostKeyChecking=no \
+      "$TARGET" exit >/dev/null 2>&1
+
+  status=$?
+
+  if [ $status -eq 0 ]; then
+    echo  # 讓點結束後換行
+    echo "✅ SSH 成功連線（免密碼）"
+    break
+  elif [ $status -eq 255 ]; then
+    # 額外取得錯誤訊息來判斷
+    OUTPUT=$(ssh -o ConnectTimeout=5 \
+                 -o BatchMode=yes \
+                 -o StrictHostKeyChecking=no \
+                 "$TARGET" exit 2>&1)
+
+    if echo "$OUTPUT" | grep -qi "Permission denied"; then
+      echo
+      echo "🚫 無法免密碼登入（需要密碼）"
+      SKIP_WAIT=true
+      break
+    elif echo "$OUTPUT" | grep -qiE "Connection refused|No route to host|Connection timed out"; then
+      echo -n "x"  # 表示連線問題
+    else
+      echo -n "?"  # 其他未知錯誤
+    fi
+  else
+    echo -n "."  # 其他重試
+  fi
+
+  sleep 5
+done
+
+END_TIME=$(date +%s)
+WAIT_TIME=$((END_TIME - START_TIME))
+
+echo
+echo "✅ SSH 可用，耗時 $WAIT_TIME 秒。"
+
+# 嘗試登入
+echo "🔐 登入中：$TARGET"
+ssh "$TARGET"
+EXIT_CODE=$?
+
+# 若連線失敗，檢查是否是 host key 衝突
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "⚠️ 嘗試檢查是否為 SSH key 衝突..."
+  SSH_ERR=$(ssh "$TARGET" 2>&1)
+
+  if echo "$SSH_ERR" | grep -q "Offending"; then
+    echo "🧹 清理 known_hosts 中的 '$hostname' 和 '$ip'"
+    ssh-keygen -R "$hostname"
+    ssh-keygen -R "$ip"
+    echo "🔁 重新嘗試登入..."
+    ssh "$TARGET"
+  else
+    echo "❌ 無法登入：$SSH_ERR"
+    exit 1
+  fi
 fi
-
-selected="${servers[$((choice-1))]}"
-ip=$(echo "$selected" | awk '{print $1}')
-hostname=$(echo "$selected" | awk '{print $2}')
-
-read -p "請輸入要使用的使用者帳號 (預設: root): " ssh_user
-ssh_user="${ssh_user:-root}"
-
-echo "🔐 正在連線：$ssh_user@$hostname ($ip)"
-start_time=$(date +%s)
-ssh "$ssh_user@$hostname"
-end_time=$(date +%s)
-duration=$((end_time - start_time))
-echo "✅ 連線結束，花費時間：${duration} 秒"
