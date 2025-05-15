@@ -75,6 +75,7 @@ cp "$HOME/config/.p10k.zsh" "$TARGET_HOME" && echo "✅ 已複製 .p10k.zsh"
 cp "$HOME/config/.zshrc" "$TARGET_HOME" && echo "✅ 已複製 .zshrc"
 cp -R "$HOME/config/vim/colors" "$TARGET_HOME/.vim/" && echo "✅ 已複製 Vim 顏色主題"
 cp "$HOME/config/vim/.vimrc" "$TARGET_HOME/.vimrc" && echo "✅ 已複製 .vimrc"
+ln -s ~/.zshrc ~/.zshenv 
 
 echo "✅ 設定檔已複製到家目錄"
 
